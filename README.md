@@ -1,7 +1,3 @@
-Entendido! Vamos refinar o conceito da "Anonymous and Encrypted Development Society" (AEDS), agora com um foco intenso em ser uma plataforma de desenvolvimento colaborativo, estilo GitHub, mas totalmente descentralizada, com remuneração intrínseca via tokens de projeto.
-
-Vamos chamar esta plataforma de "Aegis Forge" (Forja Aegis), construída sobre o Aegis Protocol que delineamos anteriormente.
-
 Aegis Protocol (Camada Base - Recapitulando e Ajustando):
 
 Blockchain: Privada por design (ZKPs, etc.) ou L2 com foco em privacidade.
