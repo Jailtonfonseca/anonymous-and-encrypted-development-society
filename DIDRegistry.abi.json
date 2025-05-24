@@ -1,0 +1,247 @@
+[
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "publicKey",
+                "type": "string"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "documentCID",
+                "type": "string"
+            }
+        ],
+        "name": "DIDRegistered",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "newDocumentCID",
+                "type": "string"
+            }
+        ],
+        "name": "DocumentCIDUpdated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "newPublicKey",
+                "type": "string"
+            }
+        ],
+        "name": "PublicKeyUpdated",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getDIDInfo",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "publicKey",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "documentCID",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getDIDOwner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getDocumentCID",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getPublicKey",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            }
+        ],
+        "name": "isDIDRegistered",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "string",
+                "name": "_publicKey",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_documentCID",
+                "type": "string"
+            }
+        ],
+        "name": "registerDID",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "string",
+                "name": "_newDocumentCID",
+                "type": "string"
+            }
+        ],
+        "name": "updateDocumentCID",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "did",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "string",
+                "name": "_newPublicKey",
+                "type": "string"
+            }
+        ],
+        "name": "updatePublicKey",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
