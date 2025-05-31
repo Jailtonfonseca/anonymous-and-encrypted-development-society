@@ -1,6 +1,6 @@
 import json
 import os
-import uuid # For a more robust project_id if needed, though sanitization is primary for now.
+import uuid
 import re
 
 # Assuming did_system.py and ipfs_storage.py are in the same directory or accessible in PYTHONPATH
@@ -59,15 +59,16 @@ def create_project(project_name: str, owner_did: str, token_supply: int = 100000
 
     Args:
         project_name: The desired name for the project.
-        owner_did: The DID of the project owner.
+        owner_did: The DID string of the project owner.
         token_supply: The total supply for the project's token.
 
     Returns:
         A dictionary containing the project's metadata if successful, otherwise None.
     """
     # 1. Validate owner_did
-    if not did_system.get_did(owner_did):
-        print(f"Error: Owner DID '{owner_did}' not found.")
+    owner_did_bytes = did_system.generate_did_identifier(owner_did)
+    if not did_system.is_did_registered(owner_did_bytes):
+        print(f"Error: Owner DID '{owner_did}' (Bytes: {owner_did_bytes.hex()}) is not registered on the blockchain.")
         return None
 
     # 2. Sanitize project_name to create project_id
@@ -177,11 +178,14 @@ def transfer_project_tokens(project_id: str, sender_did: str, receiver_did: str,
         return False
 
     # 1. Validate DIDs
-    if not did_system.get_did(sender_did):
-        print(f"Error: Sender DID '{sender_did}' not found.")
+    sender_did_bytes = did_system.generate_did_identifier(sender_did)
+    if not did_system.is_did_registered(sender_did_bytes):
+        print(f"Error: Sender DID '{sender_did}' (Bytes: {sender_did_bytes.hex()}) is not registered.")
         return False
-    if not did_system.get_did(receiver_did):
-        print(f"Error: Receiver DID '{receiver_did}' not found.")
+
+    receiver_did_bytes = did_system.generate_did_identifier(receiver_did)
+    if not did_system.is_did_registered(receiver_did_bytes):
+        print(f"Error: Receiver DID '{receiver_did}' (Bytes: {receiver_did_bytes.hex()}) is not registered.")
         return False
     
     if sender_did == receiver_did:
@@ -247,9 +251,7 @@ if __name__ == '__main__':
     if os.path.exists(PROJECTS_FILE):
         os.remove(PROJECTS_FILE)
         print(f"Removed existing {PROJECTS_FILE} for fresh test run.")
-    if os.path.exists(did_system.DIDS_FILE):
-        os.remove(did_system.DIDS_FILE)
-        print(f"Removed existing {did_system.DIDS_FILE} for fresh test run.")
+    # Removed DIDS_FILE handling as it's no longer used by did_system
     
     # Base directory for project data; ipfs_storage also uses this.
     import shutil
@@ -259,24 +261,91 @@ if __name__ == '__main__':
     #     print(f"Cleaned up base directory: {PROJECT_DATA_BASE_DIR}")
     os.makedirs(PROJECT_DATA_BASE_DIR, exist_ok=True)
 
+    # --- Test DID Setup on Blockchain ---
+    print("\nAttempting to set up test DIDs on the blockchain...")
+    test_owner_eth_address = None
+    test_owner_eth_pk = None
+    can_run_did_tests = False
 
-    print("\nAttempting to create a dummy DID for owner...")
-    owner_did_data = did_system.create_did(nickname="TestOwner")
-    project1_id_for_test = None # To store successfully created project ID
-    project2_id_for_test = None 
-    test_owner_did = None
+    if did_system.w3 and did_system.did_registry_contract:
+        if did_system.w3.eth.accounts:
+            test_owner_eth_address = did_system.w3.eth.accounts[0]
+            # Common default Ganache private key for the first account
+            # IMPORTANT: This is a default key for development with Ganache.
+            # It will NOT work if your Ganache instance uses a different seed/mnemonic.
+            # Replace if your Ganache account 0 has a different private key.
+            DEFAULT_GANACHE_PK_0 = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+            test_owner_eth_pk = DEFAULT_GANACHE_PK_0
+            print(f"Using Ganache account {test_owner_eth_address} for test DID registrations.")
+            can_run_did_tests = True
+        else:
+            print("WARNING: No Ganache accounts found (w3.eth.accounts is empty).")
+            print("Cannot register test DIDs on-chain. Contract interaction tests will be limited.")
+    else:
+        print("WARNING: did_system.w3 or did_system.did_registry_contract is None.")
+        print("This means the connection to Ganache or contract setup failed in did_system.py.")
+        print("Project creation/transfer tests requiring DIDs will be skipped or may fail if they proceed.")
 
-    if owner_did_data and owner_did_data[0]:
-        test_owner_did = owner_did_data[0]
-        print(f"Created dummy owner DID: {test_owner_did}")
+    test_owner_did_string = f"pm-test-owner-did-{uuid.uuid4().hex[:8]}"
+    test_receiver_did_string = f"pm-test-receiver-did-{uuid.uuid4().hex[:8]}"
+    owner_registered = False
+    receiver_registered = False
+    test_owner_did = None # Will hold the string DID if registration is successful
+    test_receiver_did = None # Will hold the string DID if registration is successful
 
+    if can_run_did_tests and test_owner_eth_address and test_owner_eth_pk:
+        owner_did_bytes = did_system.generate_did_identifier(test_owner_did_string)
+        print(f"Attempting to register owner DID: {test_owner_did_string} (0x{owner_did_bytes.hex()})")
+        if not did_system.is_did_registered(owner_did_bytes):
+            owner_registered = did_system.register_did(
+                owner_did_bytes, "test_pk_owner_pm", "QmTestCIDOwnerPM",
+                test_owner_eth_address, test_owner_eth_pk
+            )
+            if owner_registered:
+                print(f"Owner DID {test_owner_did_string} registered successfully.")
+            else:
+                print(f"Failed to register owner DID {test_owner_did_string}. See errors from did_system.")
+        else:
+            print(f"Owner DID {test_owner_did_string} (0x{owner_did_bytes.hex()}) is already registered.")
+            owner_registered = True # Treat as success for the test if already there
+
+        if owner_registered:
+            test_owner_did = test_owner_did_string # Use the string identifier for project functions
+
+        receiver_did_bytes = did_system.generate_did_identifier(test_receiver_did_string)
+        print(f"Attempting to register receiver DID: {test_receiver_did_string} (0x{receiver_did_bytes.hex()})")
+        if not did_system.is_did_registered(receiver_did_bytes):
+            receiver_registered = did_system.register_did(
+                receiver_did_bytes, "test_pk_receiver_pm", "QmTestCIDReceiverPM",
+                test_owner_eth_address, test_owner_eth_pk # Registering with the same eth account for simplicity
+            )
+            if receiver_registered:
+                print(f"Receiver DID {test_receiver_did_string} registered successfully.")
+            else:
+                print(f"Failed to register receiver DID {test_receiver_did_string}. See errors from did_system.")
+        else:
+            print(f"Receiver DID {test_receiver_did_string} (0x{receiver_did_bytes.hex()}) is already registered.")
+            receiver_registered = True
+
+        if receiver_registered:
+            test_receiver_did = test_receiver_did_string # Use string identifier
+
+    else:
+        print("Skipping on-chain DID registration due to Ganache connection/account issues.")
+        print("Project creation and transfer tests requiring new DIDs may fail or be skipped.")
+
+    project1_id_for_test = None
+    project2_id_for_test = None
+
+    if owner_registered and test_owner_did: # Ensure owner DID string is available
+        print(f"\nUsing registered owner DID: {test_owner_did} for project tests.")
         print("\nAttempting to create a new project 'My First Project'...")
         project1_data = create_project("My First Project", test_owner_did)
         if project1_data:
             print(f"Project 'My First Project' created successfully: {project1_data}")
             project1_id_for_test = project1_data.get("project_id")
         else:
-            print("Failed to create 'My First Project'. Check IPFS daemon and logs.")
+            print("Failed to create 'My First Project'. Check IPFS daemon and DID registration status.")
 
         print("\nAttempting to create a project with the same name (should fail)...")
         project1_again_data = create_project("My First Project", test_owner_did)
@@ -292,17 +361,25 @@ if __name__ == '__main__':
             project2_id_for_test = project2_data.get("project_id")
         else:
             print("Failed to create 'Another Cool Project!'.")
-
-        print("\nAttempting to create a project with an invalid DID (should fail)...")
-        invalid_did_project = create_project("Invalid DID Project", "did:aegis:invalid-did-string")
-        if not invalid_did_project:
-            print("Successfully prevented creation with invalid DID.")
-        else:
-            print(f"ERROR: Allowed creation of project with invalid DID: {invalid_did_project}")
-
     else:
-        print("Failed to create a dummy owner DID. Cannot run create_project tests.")
-        print(f"Make sure {did_system.DIDS_FILE} can be created/written.")
+        print("\nSkipping project creation tests as owner DID was not successfully registered or available.")
+        if not can_run_did_tests:
+            print("   Reason: Ganache/contract connection issue or no accounts found.")
+        elif not test_owner_eth_address or not test_owner_eth_pk:
+             print("   Reason: Ethereum test account address or private key not set up.")
+        else:
+             print("   Reason: Failed to register or confirm owner DID on the blockchain.")
+
+    print("\nAttempting to create a project with a non-registered DID string (should fail)...")
+    # This test should ideally run regardless of whether test_owner_did was registered,
+    # as it tests the negative case for create_project's DID validation.
+    non_registered_did_string = "did:aegis:non-existent-pm-test-did"
+    invalid_did_project = create_project("Invalid DID Project", non_registered_did_string)
+    if not invalid_did_project:
+        print(f"Successfully prevented creation with non-registered DID '{non_registered_did_string}'.")
+    else:
+        print(f"ERROR: Allowed creation of project with non-registered DID '{non_registered_did_string}': {invalid_did_project}")
+
 
     # --- Test get_project ---
     print("\n--- Testing get_project ---")
@@ -343,10 +420,8 @@ if __name__ == '__main__':
 
     # --- Test transfer_project_tokens ---
     print("\n--- Testing transfer_project_tokens ---")
-    receiver_did_data = did_system.create_did(nickname="TestReceiver")
-    if test_owner_did and receiver_did_data and receiver_did_data[0] and project1_id_for_test:
-        test_receiver_did = receiver_did_data[0]
-        print(f"Created dummy receiver DID: {test_receiver_did}")
+    if owner_registered and receiver_registered and test_owner_did and test_receiver_did and project1_id_for_test:
+        print(f"Using registered owner DID: {test_owner_did} and receiver DID: {test_receiver_did} for transfer tests.")
 
         initial_project_state = get_project(project1_id_for_test)
         initial_owner_balance = initial_project_state["token_ledger"].get(test_owner_did, 0)
@@ -364,19 +439,22 @@ if __name__ == '__main__':
             else:
                  print("ERROR: Balances not updated correctly after transfer.")
         else:
-            print("ERROR: Valid token transfer failed.")
+            print("ERROR: Valid token transfer failed. Check DID registration and project state.")
 
         print("\nAttempting to transfer more tokens than available (should fail)...")
-        if not transfer_project_tokens(project1_id_for_test, test_owner_did, test_receiver_did, initial_owner_balance * 2): # Try to transfer way more
+        # Ensure initial_owner_balance_for_this_test reflects the current balance after the first transfer
+        current_owner_balance_for_fail_test = get_project(project1_id_for_test)["token_ledger"].get(test_owner_did, 0)
+        if not transfer_project_tokens(project1_id_for_test, test_owner_did, test_receiver_did, current_owner_balance_for_fail_test + 100):
             print("Successfully prevented transfer of insufficient funds.")
         else:
             print("ERROR: Allowed transfer of insufficient funds.")
 
-        print("\nAttempting to transfer with invalid sender DID (should fail)...")
-        if not transfer_project_tokens(project1_id_for_test, "did:aegis:invalid-sender", test_receiver_did, 10):
-            print("Successfully prevented transfer from invalid sender.")
+        print("\nAttempting to transfer with a non-registered sender DID string (should fail)...")
+        non_registered_sender_did = "did:aegis:non-existent-sender-pm"
+        if not transfer_project_tokens(project1_id_for_test, non_registered_sender_did, test_receiver_did, 10):
+            print(f"Successfully prevented transfer from non-registered sender '{non_registered_sender_did}'.")
         else:
-            print("ERROR: Allowed transfer from invalid sender.")
+            print(f"ERROR: Allowed transfer from non-registered sender '{non_registered_sender_did}'.")
         
         print("\nAttempting to transfer to self (should fail)...")
         if not transfer_project_tokens(project1_id_for_test, test_owner_did, test_owner_did, 10):
@@ -385,7 +463,17 @@ if __name__ == '__main__':
             print("ERROR: Allowed transfer to self.")
 
     else:
-        print("Skipping transfer_project_tokens tests due to missing DIDs or project.")
+        print("Skipping transfer_project_tokens tests due to missing or failed DID registrations, or project creation failure.")
+        if not project1_id_for_test:
+             print("   Reason: project1_id_for_test is not set (project creation likely failed).")
+        if not owner_registered:
+             print("   Reason: Owner DID was not registered.")
+        if not receiver_registered:
+             print("   Reason: Receiver DID was not registered.")
+        if not test_owner_did:
+             print("   Reason: test_owner_did string is None.")
+        if not test_receiver_did:
+             print("   Reason: test_receiver_did string is None.")
 
 
     # Test list_projects with no projects file (restore projects.json if it was removed by previous test)
@@ -433,9 +521,7 @@ if __name__ == '__main__':
     if os.path.exists(PROJECTS_FILE):
         os.remove(PROJECTS_FILE)
         print(f"Cleaned up {PROJECTS_FILE}")
-    if os.path.exists(did_system.DIDS_FILE): # Also used by these tests
-        os.remove(did_system.DIDS_FILE)
-        print(f"Cleaned up {did_system.DIDS_FILE}")
+    # Removed DIDS_FILE cleanup, no longer used by did_system or these tests directly.
         
     # Check if ipfs_storage.client is None to determine if IPFS-dependent tests were skipped
     if ipfs_storage.client is None:
