@@ -66,8 +66,9 @@ def create_project(project_name: str, owner_did: str, token_supply: int = 100000
         A dictionary containing the project's metadata if successful, otherwise None.
     """
     # 1. Validate owner_did
-    if not did_system.get_did(owner_did):
-        print(f"Error: Owner DID '{owner_did}' not found.")
+    owner_did_bytes32 = did_system.generate_did_identifier(owner_did)
+    if not did_system.is_did_registered(owner_did_bytes32):
+        print(f"Error: Owner DID '{owner_did}' is not registered on the blockchain.")
         return None
 
     # 2. Sanitize project_name to create project_id
@@ -177,11 +178,14 @@ def transfer_project_tokens(project_id: str, sender_did: str, receiver_did: str,
         return False
 
     # 1. Validate DIDs
-    if not did_system.get_did(sender_did):
-        print(f"Error: Sender DID '{sender_did}' not found.")
+    sender_did_bytes32 = did_system.generate_did_identifier(sender_did)
+    if not did_system.is_did_registered(sender_did_bytes32):
+        print(f"Error: Sender DID '{sender_did}' is not registered on the blockchain.")
         return False
-    if not did_system.get_did(receiver_did):
-        print(f"Error: Receiver DID '{receiver_did}' not found.")
+
+    receiver_did_bytes32 = did_system.generate_did_identifier(receiver_did)
+    if not did_system.is_did_registered(receiver_did_bytes32):
+        print(f"Error: Receiver DID '{receiver_did}' is not registered on the blockchain.")
         return False
     
     if sender_did == receiver_did:
@@ -294,15 +298,21 @@ if __name__ == '__main__':
             print("Failed to create 'Another Cool Project!'.")
 
         print("\nAttempting to create a project with an invalid DID (should fail)...")
-        invalid_did_project = create_project("Invalid DID Project", "did:aegis:invalid-did-string")
+        # For this test to be meaningful with the new system, the DID needs to be *unregistered*
+        # rather than just syntactically invalid in the old local system.
+        # We'll use a unique string that's unlikely to be registered.
+        unregistered_did_string = f"did:aegis:unregistered-{uuid.uuid4()}"
+        invalid_did_project = create_project("Invalid DID Project", unregistered_did_string)
         if not invalid_did_project:
-            print("Successfully prevented creation with invalid DID.")
+            print(f"Successfully prevented creation with unregistered DID: {unregistered_did_string}.")
         else:
-            print(f"ERROR: Allowed creation of project with invalid DID: {invalid_did_project}")
+            print(f"ERROR: Allowed creation of project with unregistered DID: {unregistered_did_string} -> {invalid_did_project}")
 
     else:
-        print("Failed to create a dummy owner DID. Cannot run create_project tests.")
-        print(f"Make sure {did_system.DIDS_FILE} can be created/written.")
+        print("Failed to create a dummy owner DID for project creation tests.")
+        # The following DIDS_FILE check is from the old system, less relevant for blockchain.
+        # print(f"Make sure {did_system.DIDS_FILE} can be created/written.")
+        print("Ensure Ganache is running and test accounts are available for blockchain DID interactions.")
 
     # --- Test get_project ---
     print("\n--- Testing get_project ---")
@@ -373,10 +383,18 @@ if __name__ == '__main__':
             print("ERROR: Allowed transfer of insufficient funds.")
 
         print("\nAttempting to transfer with invalid sender DID (should fail)...")
-        if not transfer_project_tokens(project1_id_for_test, "did:aegis:invalid-sender", test_receiver_did, 10):
-            print("Successfully prevented transfer from invalid sender.")
+        unregistered_sender_did = f"did:aegis:unregistered-sender-{uuid.uuid4()}"
+        if not transfer_project_tokens(project1_id_for_test, unregistered_sender_did, test_receiver_did, 10):
+            print(f"Successfully prevented transfer from unregistered sender DID: {unregistered_sender_did}.")
         else:
-            print("ERROR: Allowed transfer from invalid sender.")
+            print(f"ERROR: Allowed transfer from unregistered sender DID: {unregistered_sender_did}.")
+
+        print("\nAttempting to transfer to invalid receiver DID (should fail)...")
+        unregistered_receiver_did = f"did:aegis:unregistered-receiver-{uuid.uuid4()}"
+        if not transfer_project_tokens(project1_id_for_test, test_owner_did, unregistered_receiver_did, 10):
+            print(f"Successfully prevented transfer to unregistered receiver DID: {unregistered_receiver_did}.")
+        else:
+            print(f"ERROR: Allowed transfer to unregistered receiver DID: {unregistered_receiver_did}.")
         
         print("\nAttempting to transfer to self (should fail)...")
         if not transfer_project_tokens(project1_id_for_test, test_owner_did, test_owner_did, 10):
@@ -433,9 +451,10 @@ if __name__ == '__main__':
     if os.path.exists(PROJECTS_FILE):
         os.remove(PROJECTS_FILE)
         print(f"Cleaned up {PROJECTS_FILE}")
-    if os.path.exists(did_system.DIDS_FILE): # Also used by these tests
-        os.remove(did_system.DIDS_FILE)
-        print(f"Cleaned up {did_system.DIDS_FILE}")
+    # The DIDS_FILE is part of the old local system, not directly relevant to blockchain cleanup here.
+    # if os.path.exists(did_system.DIDS_FILE):
+    #     os.remove(did_system.DIDS_FILE)
+    #     print(f"Cleaned up {did_system.DIDS_FILE}") # This file is from the old system.
         
     # Check if ipfs_storage.client is None to determine if IPFS-dependent tests were skipped
     if ipfs_storage.client is None:

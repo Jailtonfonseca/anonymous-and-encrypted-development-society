@@ -59,8 +59,9 @@ def submit_contribution(project_id: str, contributor_did: str, title: str, descr
         return None
 
     # 2. Validate contributor_did
-    if not did_system.get_did(contributor_did):
-        print(f"Error: Contributor DID '{contributor_did}' not found. Cannot submit contribution.")
+    contributor_did_bytes32 = did_system.generate_did_identifier(contributor_did)
+    if not did_system.is_did_registered(contributor_did_bytes32):
+        print(f"Error: Contributor DID '{contributor_did}' is not registered on the blockchain. Cannot submit contribution.")
         return None
 
     # 3. Add content to IPFS
@@ -237,7 +238,12 @@ if __name__ == '__main__':
     # Setup: Requires did_system, ipfs_storage, project_management to be functional
     # and IPFS daemon running.
     # Clean up previous test files
-    for f in [CONTRIBUTIONS_FILE, did_system.DIDS_FILE, project_management.PROJECTS_FILE]:
+    # Note: did_system.DIDS_FILE is from the old local DID system, less relevant for blockchain tests.
+    files_to_clean_for_test = [CONTRIBUTIONS_FILE, project_management.PROJECTS_FILE]
+    # if os.path.exists(did_system.DIDS_FILE): # Keep this commented or remove if not testing old system fallback
+    #     files_to_clean_for_test.append(did_system.DIDS_FILE)
+
+    for f in files_to_clean_for_test:
         if os.path.exists(f):
             os.remove(f)
             print(f"Removed existing {f} for fresh test run.")
@@ -431,8 +437,12 @@ if __name__ == '__main__':
             print(f"Cleaned up test project directory: {path_to_clean}")
 
     # Clean up global JSON files
-    files_to_remove = [CONTRIBUTIONS_FILE, did_system.DIDS_FILE, project_management.PROJECTS_FILE]
-    for f_path in files_to_remove:
+    # Note: did_system.DIDS_FILE is from the old local DID system.
+    files_to_remove_after_test = [CONTRIBUTIONS_FILE, project_management.PROJECTS_FILE]
+    # if os.path.exists(did_system.DIDS_FILE): # Keep this commented or remove
+    #     files_to_remove_after_test.append(did_system.DIDS_FILE)
+
+    for f_path in files_to_remove_after_test:
         if os.path.exists(f_path):
             os.remove(f_path)
             print(f"Cleaned up {f_path}")
