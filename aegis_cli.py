@@ -10,6 +10,7 @@ import platform_token # New import for platform token interactions
 import p2p_messaging # New import for P2P messaging
 import asyncio # For running async P2P functions
 import decimal # For precise amount conversions
+import decimal # For precise amount conversions
 
 # Helper to pretty print JSON
 def print_json(data):
@@ -167,39 +168,41 @@ def project_group():
 # For now, project creation itself in project_management.py doesn't require signing a blockchain tx for project metadata.
 # However, owner_did (the string) needs to be valid on the DIDRegistry if we cross-check.
 @click.option('--supply', type=int, default=1000000, show_default=True, help="Initial token supply for the project.")
-def project_create(project_name, owner_did, owner_address, supply):
-    """Creates a new project. Owner DID should be a registered DID unique identifier string."""
-    # Validate if the owner_did (unique string) is registered on-chain
+@click.option('--owner-pk', required=True, help="Private key of the owner/deployer for deploying the project token contract. WARNING: For local testing ONLY.")
+def project_create(project_name, owner_did, owner_address, supply, owner_pk):
+    """Creates a new project and deploys its on-chain token. Owner DID must be registered and match owner_address."""
+    click.secho("WARNING: Private key input ('--owner-pk') is for local development with Ganache test accounts only. Do not use real private keys here.", fg="yellow", bold=True)
+
     if not did_system.w3 or not did_system.did_registry_contract:
-        click.secho("Web3 or DIDRegistry contract not initialized. Check Ganache connection and contract deployment.", fg="red")
+        click.secho("Web3 or DIDRegistry contract not initialized. Check Ganache and contract deployment.", fg="red")
         return
     
     owner_did_bytes32 = did_system.generate_did_identifier(owner_did)
     if not did_system.is_did_registered(owner_did_bytes32):
-        click.secho(f"Error: Owner DID (from string '{owner_did}') '0x{owner_did_bytes32.hex()}' is not registered on the blockchain. Please register it first.", fg="red")
+        click.secho(f"Error: Owner DID (from string '{owner_did}') '0x{owner_did_bytes32.hex()}' is not registered on the blockchain.", fg="red")
         return
     
-    # Retrieve the registered owner address from the blockchain for the given owner_did string
-    # This ensures the project is associated with the on-chain DID owner
     did_info = did_system.get_did_info(owner_did_bytes32)
-    if not did_info or did_info['owner'] != owner_address:
-        click.secho(f"Error: The provided owner_address '{owner_address}' does not match the registered owner of DID '{owner_did}' (0x{owner_did_bytes32.hex()}).", fg="red")
-        click.secho(f"Registered owner is: {did_info['owner'] if did_info else 'unknown'}", fg="red")
+    if not did_info:
+        click.secho(f"Error: Could not retrieve info for owner DID '{owner_did}'.", fg="red")
+        return
+    if did_info.get('owner', '').lower() != owner_address.lower():
+        click.secho(f"Error: The provided owner_address '{owner_address}' does not match the registered Ethereum owner ('{did_info.get('owner')}') of DID '{owner_did}'.", fg="red")
         return
 
     try:
-        # Pass the original unique_identifier_string for owner_did to project_management,
-        # as project_management might use it as a key or expect that format internally for its JSON.
-        # Or, decide if project_management should also work with bytes32 DIDs internally.
-        # For now, assume project_management expects the string version of DIDs for its JSON files.
-        # The crucial part is that the `owner_did` (string) corresponds to a registered on-chain DID
-        # owned by `owner_address`.
-        project_data = project_management.create_project(project_name, owner_did, token_supply=supply) # owner_did is still the string here
+        project_data = project_management.create_project(
+            project_name=project_name,
+            owner_did=owner_did, # The DID string
+            token_supply=supply,
+            owner_private_key=owner_pk # PK for the owner_eth_address linked to owner_did
+        )
         if project_data:
             click.secho(f"Project '{project_name}' created successfully!", fg="green")
+            click.echo(f"Project Token Contract Address: {project_data.get('project_token_contract_address')}")
             print_json(project_data)
         else:
-            click.secho(f"Failed to create project '{project_name}'. See backend logs for details.", fg="red")
+            click.secho(f"Failed to create project '{project_name}'. See backend logs for details (check Ganache, deploy_project_token.py script output).", fg="red")
     except Exception as e:
         click.secho(f"Error creating project: {e}", fg="red")
 
@@ -230,29 +233,67 @@ def project_show(project_id):
 
 @project_group.command('balance')
 @click.argument('project_id')
-@click.argument('did_unique_string') 
+@click.argument('did_unique_string')
 def project_balance(project_id, did_unique_string):
-    """Shows token balance of a DID (specified by its unique string) for a specific project."""
-    if not did_system.w3 or not did_system.did_registry_contract: # Ensure Web3 is up for DID checks
-        click.secho("Web3 or DIDRegistry contract not initialized. Check Ganache connection and contract deployment.", fg="red")
+    """Shows on-chain token balance of a DID (specified by its unique string) for a specific project."""
+    if not did_system.w3: # Web3 must be initialized (usually by did_system loading)
+        click.secho("Web3 is not initialized. Check Ganache connection and contract deployments.", fg="red")
         return
+
+    w3 = did_system.w3 # Use the initialized Web3 instance from did_system
+
     try:
         project_data = project_management.get_project(project_id)
         if not project_data:
             click.secho(f"Project '{project_id}' not found.", fg="yellow")
             return
 
-        # It's good practice to check if the DID is registered on-chain, even if the balance is off-chain.
+        token_contract_address_str = project_data.get("project_token_contract_address")
+        if not token_contract_address_str:
+            click.secho(f"Project '{project_id}' does not have an on-chain token contract address listed.", fg="red")
+            return
+
+        token_contract_address = w3.to_checksum_address(token_contract_address_str)
+
+        # Resolve DID string to Ethereum address
         did_bytes32 = did_system.generate_did_identifier(did_unique_string)
         if not did_system.is_did_registered(did_bytes32):
-            click.secho(f"Warning: DID for '{did_unique_string}' (0x{did_bytes32.hex()}) is not registered on the blockchain. Balance shown is based on off-chain records which may refer to an unverified identifier.", fg="yellow")
+            click.secho(f"Error: DID for '{did_unique_string}' (0x{did_bytes32.hex()}) is not registered on the blockchain.", fg="red")
+            return
         
-        # project_management.py stores balances against the unique string version of DIDs (owner_did in create_project).
-        token_ledger = project_data.get("token_ledger", {})
-        balance = token_ledger.get(did_unique_string, 0) 
-        click.echo(f"Token balance for DID unique string '{did_unique_string}' in project '{project_id}': {balance} {project_data.get('token_name', 'tokens')}")
+        did_info = did_system.get_did_info(did_bytes32)
+        if not did_info or "owner" not in did_info:
+            click.secho(f"Error: Could not retrieve Ethereum address for DID '{did_unique_string}'.", fg="red")
+            return
+        holder_eth_address_str = did_info["owner"]
+        holder_eth_address = w3.to_checksum_address(holder_eth_address_str)
+
+        # Load ProjectToken ABI
+        abi_file_path = "ProjectToken.abi.json"
+        if not os.path.exists(abi_file_path):
+            click.secho(f"Error: ProjectToken ABI file '{abi_file_path}' not found. Compile contracts first.", fg="red")
+            return
+        with open(abi_file_path, 'r') as f:
+            token_abi = json.load(f)
+
+        # Create contract instance
+        token_contract = w3.eth.contract(address=token_contract_address, abi=token_abi)
+
+        # Fetch balance, decimals, and symbol
+        balance_smallest_units = token_contract.functions.balanceOf(holder_eth_address).call()
+        token_decimals = token_contract.functions.decimals().call()
+        token_symbol = token_contract.functions.symbol().call()
+
+        balance_readable = decimal.Decimal(balance_smallest_units) / (decimal.Decimal(10) ** token_decimals)
+
+        click.echo(f"Token balance for DID '{did_unique_string}' (Address: {holder_eth_address_str}) in project '{project_id}':")
+        click.echo(f"  {balance_readable.quantize(decimal.Decimal('0.000001'))} {token_symbol}") # Adjust precision as needed
+        click.echo(f"  (Smallest units: {balance_smallest_units})")
+
     except Exception as e:
-        click.secho(f"Error getting balance for project '{project_id}', DID unique string '{did_unique_string}': {e}", fg="red")
+        click.secho(f"Error getting on-chain balance for project '{project_id}', DID '{did_unique_string}': {e}", fg="red")
+        import traceback
+        traceback.print_exc()
 
 
 # --- Contribution Commands ---
@@ -337,30 +378,35 @@ def contribution_show(proposal_id):
 @contribution_group.command('review')
 @click.argument('proposal_id')
 @click.option('--reviewer-did', 'reviewer_did_string', required=True, help="The unique identifier string of the reviewer's DID (must be project owner).")
+@click.option('--reviewer-pk', required=True, help="Private key of the reviewer (project owner) for signing token reward transactions. WARNING: For local testing ONLY.")
 @click.option('--status', required=True, type=click.Choice(['approved', 'rejected'], case_sensitive=False), help="New status for the proposal.")
 @click.option('--reward', type=int, default=0, show_default=True, help="Token reward amount if approved.")
-def contribution_review(proposal_id, reviewer_did_string, status, reward):
+def contribution_review(proposal_id, reviewer_did_string, reviewer_pk, status, reward):
     """Reviews a contribution proposal. Reviewer DID must be registered and be the project owner."""
+    click.secho("WARNING: Private key input ('--reviewer-pk') is for local development with Ganache test accounts only. Do not use real private keys here.", fg="yellow", bold=True)
+
     if not did_system.w3 or not did_system.did_registry_contract:
         click.secho("Web3 or DIDRegistry contract not initialized. Cannot verify reviewer DID.", fg="red")
         return
 
-    # Validate reviewer_did_string
     reviewer_did_bytes32 = did_system.generate_did_identifier(reviewer_did_string)
     if not did_system.is_did_registered(reviewer_did_bytes32):
         click.secho(f"Error: Reviewer DID (from string '{reviewer_did_string}') '0x{reviewer_did_bytes32.hex()}' is not registered.", fg="red")
         return
     
-    # The contribution_workflow.review_contribution function will fetch the project
-    # and verify if the reviewer_did_string (which it expects) matches the project owner's DID string.
-    # It also handles fetching the project owner's Ethereum address for token transfers if needed.
+    # contribution_workflow.review_contribution will further validate if reviewer_did_string is project owner
     try:
-        # contribution_workflow.review_contribution expects the string version of the DID
-        success = contribution_workflow.review_contribution(proposal_id, reviewer_did_string, status, reward)
+        success = contribution_workflow.review_contribution(
+            proposal_id=proposal_id,
+            reviewer_did=reviewer_did_string,
+            reviewer_private_key=reviewer_pk,
+            new_status=status,
+            reward_amount=reward
+        )
         if success:
             click.secho(f"Contribution proposal '{proposal_id}' reviewed successfully. New status: {status}.", fg="green")
         else:
-            click.secho(f"Failed to review contribution proposal '{proposal_id}'. See backend logs.", fg="red")
+            click.secho(f"Failed to review contribution proposal '{proposal_id}'. See backend logs (check Ganache, token transfer details).", fg="red")
     except Exception as e:
         click.secho(f"Error reviewing contribution: {e}", fg="red")
 
