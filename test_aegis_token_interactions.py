@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 import solcx
 import decimal
 
@@ -33,9 +33,9 @@ def compile_contract_with_oz(source_file_path, contract_name, allow_paths_list):
                     break
         
         if not target_version:
-            print("No suitable 0.8.x solc version found. Attempting to install 0.8.20...")
-            solcx.install_solc('0.8.20')
-            target_version = solcx.set_solc_version('0.8.20', silent=True)
+            print("No suitable 0.8.x solc version found. Attempting to install 0.8.4...")
+            solcx.install_solc('0.8.4')
+            target_version = solcx.set_solc_version('0.8.4', silent=True)
         else:
             solcx.set_solc_version(target_version, silent=True)
         
@@ -98,7 +98,7 @@ class TestAegisTokenInteractions(unittest.TestCase):
             try: cls.w3.eth.block_number
             except Exception as e: raise ConnectionError(f"Failed to connect to Ganache: {e}")
         
-        cls.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        cls.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
         cls.deployer_owner = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_0)
         cls.recipient1 = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_1)

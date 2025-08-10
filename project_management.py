@@ -251,27 +251,39 @@ if __name__ == '__main__':
     if os.path.exists(PROJECTS_FILE):
         os.remove(PROJECTS_FILE)
         print(f"Removed existing {PROJECTS_FILE} for fresh test run.")
-    if os.path.exists(did_system.DIDS_FILE):
-        os.remove(did_system.DIDS_FILE)
-        print(f"Removed existing {did_system.DIDS_FILE} for fresh test run.")
     
     # Base directory for project data; ipfs_storage also uses this.
     import shutil
-    # Commenting out broad rmtree for safety during iterative development
-    # if os.path.exists(PROJECT_DATA_BASE_DIR):
-    #     shutil.rmtree(PROJECT_DATA_BASE_DIR) 
-    #     print(f"Cleaned up base directory: {PROJECT_DATA_BASE_DIR}")
     os.makedirs(PROJECT_DATA_BASE_DIR, exist_ok=True)
 
 
     print("\nAttempting to create a dummy DID for owner...")
-    owner_did_data = did_system.create_did(nickname="TestOwner")
+    # With the new blockchain-based system, we need to register a DID on-chain.
+    # We'll use a pre-defined account from Ganache for this test.
+    test_owner_did_string = f"did:aegis:pm-test-owner-{uuid.uuid4().hex[:6]}"
+    test_owner_did_bytes = did_system.generate_did_identifier(test_owner_did_string)
+
+    # Use a known test account from Ganache
+    owner_address = did_system.w3.eth.accounts[0]
+    # This is a common default private key for the first account in a default Ganache instance
+    # IMPORTANT: This will only work if the Ganache instance uses the default seed phrase.
+    owner_pk = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+
+    print(f"Registering dummy owner DID '{test_owner_did_string}' on-chain...")
+    did_registered = did_system.register_did(
+        test_owner_did_bytes,
+        "test_pk",
+        "test_cid",
+        owner_address,
+        owner_pk
+    )
+
     project1_id_for_test = None # To store successfully created project ID
     project2_id_for_test = None 
     test_owner_did = None
 
-    if owner_did_data and owner_did_data[0]:
-        test_owner_did = owner_did_data[0]
+    if did_registered:
+        test_owner_did = test_owner_did_string
         print(f"Created dummy owner DID: {test_owner_did}")
 
         print("\nAttempting to create a new project 'My First Project'...")
@@ -353,9 +365,24 @@ if __name__ == '__main__':
 
     # --- Test transfer_project_tokens ---
     print("\n--- Testing transfer_project_tokens ---")
-    receiver_did_data = did_system.create_did(nickname="TestReceiver")
-    if test_owner_did and receiver_did_data and receiver_did_data[0] and project1_id_for_test:
-        test_receiver_did = receiver_did_data[0]
+
+    # Create a second DID for the receiver
+    test_receiver_did_string = f"did:aegis:pm-test-receiver-{uuid.uuid4().hex[:6]}"
+    test_receiver_did_bytes = did_system.generate_did_identifier(test_receiver_did_string)
+    receiver_address = did_system.w3.eth.accounts[1]
+    receiver_pk = "0x6c002f5f36494661586ebb0882038bf8d598aafb88a5e2300971707fce91e997" # Default Ganache PK for account 1
+
+    print(f"Registering dummy receiver DID '{test_receiver_did_string}' on-chain...")
+    receiver_did_registered = did_system.register_did(
+        test_receiver_did_bytes,
+        "receiver_test_pk",
+        "receiver_test_cid",
+        receiver_address,
+        receiver_pk
+    )
+
+    if test_owner_did and receiver_did_registered and project1_id_for_test:
+        test_receiver_did = test_receiver_did_string
         print(f"Created dummy receiver DID: {test_receiver_did}")
 
         initial_project_state = get_project(project1_id_for_test)
