@@ -258,26 +258,43 @@ if __name__ == '__main__':
 
     os.makedirs(project_data_base_dir, exist_ok=True)
     
-    # 1. Create a dummy owner DID and a contributor DID
+    # 1. Create dummy DIDs on-chain for testing
     print("Setting up DIDs...")
-    owner_did_obj = did_system.create_did(nickname="ProjectOwner")
-    contrib_did_obj = did_system.create_did(nickname="Contributor1")
-    reviewer_did_obj = did_system.create_did(nickname="NonOwnerReviewer") # For testing unauthorized review
 
-    test_proposal_id = None # To store successfully submitted proposal ID
+    # Owner DID
+    owner_did_string = f"did:aegis:cw-test-owner-{uuid.uuid4().hex[:6]}"
+    owner_did_bytes = did_system.generate_did_identifier(owner_did_string)
+    owner_address = did_system.w3.eth.accounts[0]
+    owner_pk = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+    owner_registered = did_system.register_did(owner_did_bytes, "owner_pk", "owner_cid", owner_address, owner_pk)
+
+    # Contributor DID
+    contrib_did_string = f"did:aegis:cw-test-contrib-{uuid.uuid4().hex[:6]}"
+    contrib_did_bytes = did_system.generate_did_identifier(contrib_did_string)
+    contrib_address = did_system.w3.eth.accounts[1]
+    contrib_pk = "0x6c002f5f36494661586ebb0882038bf8d598aafb88a5e2300971707fce91e997"
+    contrib_registered = did_system.register_did(contrib_did_bytes, "contrib_pk", "contrib_cid", contrib_address, contrib_pk)
+
+    # Non-owner reviewer DID
+    reviewer_did_string = f"did:aegis:cw-test-reviewer-{uuid.uuid4().hex[:6]}"
+    reviewer_did_bytes = did_system.generate_did_identifier(reviewer_did_string)
+    reviewer_address = did_system.w3.eth.accounts[2]
+    reviewer_pk = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+    reviewer_registered = did_system.register_did(reviewer_did_bytes, "reviewer_pk", "reviewer_cid", reviewer_address, reviewer_pk)
+
+    test_proposal_id = None
     owner_did = None
     contributor_did = None
     non_owner_reviewer_did = None
     test_project_id = None
-    reject_proposal_id = None # For a second proposal to test get_contribution
+    reject_proposal_id = None
 
-    if not (owner_did_obj and contrib_did_obj and reviewer_did_obj and 
-            owner_did_obj[0] and contrib_did_obj[0] and reviewer_did_obj[0]):
-        print("Failed to create DIDs. Aborting tests.")
+    if not (owner_registered and contrib_registered and reviewer_registered):
+        print("Failed to register DIDs on-chain. Aborting tests.")
     else:
-        owner_did = owner_did_obj[0]
-        contributor_did = contrib_did_obj[0]
-        non_owner_reviewer_did = reviewer_did_obj[0]
+        owner_did = owner_did_string
+        contributor_did = contrib_did_string
+        non_owner_reviewer_did = reviewer_did_string
         print(f"Owner DID: {owner_did}, Contributor DID: {contributor_did}, NonOwnerReviewer DID: {non_owner_reviewer_did}")
 
         # 2. Create a dummy project

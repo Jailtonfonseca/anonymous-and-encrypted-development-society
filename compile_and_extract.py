@@ -29,11 +29,11 @@ def compile_did_registry():
         if not target_version:
             print("No suitable 0.8.x solc version found. Attempting to install one...")
             try:
-                solcx.install_solc('0.8.20') # Install a specific recent 0.8.x version
-                target_version = solcx.set_solc_version('0.8.20', silent=True)
+                solcx.install_solc('0.8.4') # Install a specific recent 0.8.x version
+                target_version = solcx.set_solc_version('0.8.4', silent=True)
                 print(f"Using solc version: {solcx.get_solc_version()}")
             except Exception as e:
-                print(f"Failed to install solc 0.8.20: {e}")
+                print(f"Failed to install solc 0.8.4: {e}")
                 print("Please ensure solc 0.8.x is installed and accessible or try installing it manually.")
                 return False
         else:

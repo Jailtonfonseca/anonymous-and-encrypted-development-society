@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from web3 import Web3
-from web3.middleware import geth_poa_middleware # For Ganache PoA compatibility
+from web3.middleware import ExtraDataToPOAMiddleware # For Ganache PoA compatibility
 import solcx # To compile the contract within the test script
 
 # --- Configuration ---
@@ -28,9 +28,9 @@ def compile_contract(source_file_path, contract_name):
                     break
         
         if not target_version:
-            print("No suitable 0.8.x solc version found. Attempting to install 0.8.20...")
-            solcx.install_solc('0.8.20')
-            target_version = solcx.set_solc_version('0.8.20', silent=True)
+            print("No suitable 0.8.x solc version found. Attempting to install 0.8.4...")
+            solcx.install_solc('0.8.4')
+            target_version = solcx.set_solc_version('0.8.4', silent=True)
         else:
             solcx.set_solc_version(target_version, silent=True)
         
@@ -86,7 +86,7 @@ class TestDIDRegistryInteractions(unittest.TestCase):
             except Exception as e:
                 raise ConnectionError(f"Failed to connect to Ganache at {GANACHE_URL}: {e}")
         
-        cls.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        cls.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
         # Setup accounts
         # It's safer to derive addresses from PKs if PKs are fixed/known for test environment

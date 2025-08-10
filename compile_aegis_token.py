@@ -26,11 +26,11 @@ def compile_aegis_token():
         if not target_version:
             print("No suitable 0.8.x solc version found. Attempting to install one...")
             try:
-                solcx.install_solc('0.8.20') # Install a specific recent 0.8.x version
-                target_version = solcx.set_solc_version('0.8.20', silent=True)
+                solcx.install_solc('0.8.4') # Install a specific recent 0.8.x version
+                target_version = solcx.set_solc_version('0.8.4', silent=True)
                 print(f"Using solc version: {solcx.get_solc_version()}")
             except Exception as e:
-                print(f"Failed to install solc 0.8.20: {e}")
+                print(f"Failed to install solc 0.8.4: {e}")
                 return False
         else:
             solcx.set_solc_version(target_version, silent=True)
