@@ -2,7 +2,7 @@ import json
 import uuid
 import os
 from web3 import Web3
-from web3.middleware import geth_poa_middleware # For Ganache PoA compatibility
+from web3.middleware import ExtraDataToPOAMiddleware # For Ganache PoA compatibility
 from eth_account.messages import encode_defunct # For signing messages (not directly used here but good for context)
 
 # --- Configuration ---
@@ -37,7 +37,7 @@ def _init_web3_and_contract():
     w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
     
     # Inject PoA middleware for Ganache compatibility (common for local testnets)
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
     if not w3.is_connected(): # For web3.py v6+, use w3.is_listening() or just try a request
         try:

@@ -382,5 +382,3 @@ if __name__ == "__main__":
     else:
         print("\nSome p2p_messaging.py tests FAILED or were SKIPPED.")
         exit(1)
-
-```

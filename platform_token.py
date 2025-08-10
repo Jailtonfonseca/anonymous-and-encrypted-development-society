@@ -1,7 +1,7 @@
 import json
 import os
 from web3 import Web3
-from web3.middleware import geth_poa_middleware # For Ganache PoA compatibility
+from web3.middleware import ExtraDataToPOAMiddleware # For Ganache PoA compatibility
 
 # --- Configuration ---
 GANACHE_URL = "http://127.0.0.1:8545"
@@ -39,7 +39,7 @@ def _init_web3_and_contract():
          print(f"Warning: Contract address {contract_address} is not a checksum address. Attempting to use as is.")
 
     w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
     if not w3.is_connected():
         try:
