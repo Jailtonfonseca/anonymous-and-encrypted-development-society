@@ -1,6 +1,6 @@
 # Aegis Forge
 
-![Logo do Aegis Forge](https://via.placeholder.com/800x200?text=Aegis+Forge+Logo)
+![Logo do Aegis Forge](assets/logo.svg)
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.0-363636)
@@ -26,29 +26,7 @@
 
 O diagrama abaixo ilustra como os componentes do Aegis Forge interagem:
 
-```mermaid
-graph TD
-    User[Usuário] -->|Comandos| CLI[Aegis CLI]
-
-    subgraph "Backend (Python)"
-        CLI --> DID[Sistema DID]
-        CLI --> PM[Gestão de Projetos]
-        CLI --> CW[Fluxo de Contribuição]
-        CLI --> P2P[Mensageria P2P]
-    end
-
-    subgraph "Blockchain (Ganache/Ethereum)"
-        DID -->|Lê/Escreve| DIDReg[Smart Contract: DIDRegistry]
-        PM -->|Lê/Escreve| Token[Smart Contract: AegisToken]
-    end
-
-    subgraph "Armazenamento Descentralizado"
-        PM -->|Armazena Arquivos| IPFS[Rede IPFS]
-        CW -->|Armazena Contribuições| IPFS
-    end
-
-    P2P -->|Conexão Direta| OtherUser[Outro Usuário (P2P)]
-```
+![Diagrama de Arquitetura](assets/architecture.svg)
 
 ---
 
