@@ -1,6 +1,6 @@
 # Aegis Forge
 
-![Logo do Aegis Forge](https://via.placeholder.com/800x200?text=Aegis+Forge+Logo)
+![Logo do Aegis Forge](assets/logo.svg)
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.0-363636)
@@ -26,29 +26,7 @@
 
 O diagrama abaixo ilustra como os componentes do Aegis Forge interagem:
 
-```mermaid
-graph TD
-    User[Usuário] -->|Comandos| CLI[Aegis CLI]
-
-    subgraph "Backend (Python)"
-        CLI --> DID[Sistema DID]
-        CLI --> PM[Gestão de Projetos]
-        CLI --> CW[Fluxo de Contribuição]
-        CLI --> P2P[Mensageria P2P]
-    end
-
-    subgraph "Blockchain (Ganache/Ethereum)"
-        DID -->|Lê/Escreve| DIDReg[Smart Contract: DIDRegistry]
-        PM -->|Lê/Escreve| Token[Smart Contract: AegisToken]
-    end
-
-    subgraph "Armazenamento Descentralizado"
-        PM -->|Armazena Arquivos| IPFS[Rede IPFS]
-        CW -->|Armazena Contribuições| IPFS
-    end
-
-    P2P -->|Conexão Direta| OtherUser[Outro Usuário (P2P)]
-```
+![Diagrama de Arquitetura](assets/architecture.svg)
 
 ---
 
@@ -107,7 +85,11 @@ chmod +x run_tests.sh
 
 ## 💻 Guia de Uso (CLI)
 
-A interação principal é feita através do script `aegis_cli.py`. Abaixo estão exemplos de uso com saídas simuladas.
+A interação principal é feita através do script `aegis_cli.py`.
+
+![Demonstração CLI](assets/cli_demo.svg)
+
+Abaixo estão exemplos de uso detalhados.
 
 ### Gestão de Identidade (DID)
 
@@ -218,6 +200,18 @@ Contribuições são bem-vindas! Por favor, leia o arquivo `contribution_workflo
 ## 📜 Licença
 
 Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+
+---
+
+## 🌐 Conecte-se comigo
+
+*   **Instagram:** [jailton_fon](https://instagram.com/jailton_fon)
+*   **Facebook:** [Jailton Fonseca](https://facebook.com/jailton.fonseca.507)
+*   **TikTok:** [@fonsecac41](https://tiktok.com/@fonsecac41)
+*   **Twitch:** [fonsecac41](https://twitch.tv/fonsecac41)
+*   **YouTube:** [@JailtonFonseca](https://www.youtube.com/@JailtonFonseca)
+
+📍 **Brasil** 🇧🇷
 
 ---
 
