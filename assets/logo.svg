@@ -1,18 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#2c3e50;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#4ca1af;stop-opacity:1" />
+    <!-- Background Gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f2027;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#203a43;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2c5364;stop-opacity:1" />
     </linearGradient>
-  </defs>
-  <rect width="800" height="200" rx="15" fill="url(#grad1)" />
 
-  <!-- Shield Icon -->
-  <path d="M150 40 L250 40 L280 100 C280 160 200 180 200 180 C200 180 120 160 120 100 L150 40 Z" fill="none" stroke="white" stroke-width="10" />
-  <path d="M200 40 L200 180" stroke="white" stroke-width="5" />
-  <path d="M150 40 L200 90 L250 40" fill="none" stroke="white" stroke-width="5" />
+    <!-- Shield Gradient -->
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00c6ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0072ff;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Text Shadow -->
+    <filter id="textShadow" x="-1" y="-1" width="300%" height="300%">
+      <feOffset result="offOut" in="SourceAlpha" dx="2" dy="2" />
+      <feGaussianBlur result="blurOut" in="offOut" stdDeviation="2" />
+      <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="200" rx="15" fill="url(#bgGradient)" />
+
+  <!-- Subtle Grid Pattern (Simulated with path) -->
+  <path d="M0 20 H800 M0 40 H800 M0 60 H800 M0 80 H800 M0 100 H800 M0 120 H800 M0 140 H800 M0 160 H800 M0 180 H800" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1" />
+  <path d="M20 0 V200 M40 0 V200 M60 0 V200 M80 0 V200 M100 0 V200 M120 0 V200 M140 0 V200 M160 0 V200 M180 0 V200 M200 0 V200 M700 0 V200 M720 0 V200 M740 0 V200 M760 0 V200 M780 0 V200" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1" />
+
+  <!-- Shield Icon Group -->
+  <g transform="translate(130, 25) scale(0.8)">
+    <!-- Outer Shield -->
+    <path d="M100 10 L190 40 L190 100 C190 155 145 185 100 195 C55 185 10 155 10 100 L10 40 L100 10 Z"
+          fill="none" stroke="url(#shieldGradient)" stroke-width="8" stroke-linejoin="round" />
+
+    <!-- Inner A / Shape -->
+    <path d="M100 40 L150 140 L100 120 L50 140 L100 40" fill="url(#shieldGradient)" opacity="0.8" />
+    <circle cx="100" cy="85" r="10" fill="#ffffff" />
+  </g>
 
   <!-- Text -->
-  <text x="320" y="120" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="white">AEGIS FORGE</text>
-  <text x="325" y="160" font-family="Arial, sans-serif" font-size="30" fill="#ecf0f1" letter-spacing="2">DECENTRALIZED COLLABORATION</text>
+  <g filter="url(#textShadow)">
+    <text x="310" y="110" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="72" font-weight="900" fill="white" letter-spacing="2">AEGIS <tspan fill="#00c6ff">FORGE</tspan></text>
+    <text x="315" y="150" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="24" fill="#cfd8dc" letter-spacing="6" font-weight="300">DECENTRALIZED COLLABORATION</text>
+  </g>
 </svg>
