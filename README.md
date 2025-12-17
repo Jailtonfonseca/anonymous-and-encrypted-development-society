@@ -85,7 +85,11 @@ chmod +x run_tests.sh
 
 ## 💻 Guia de Uso (CLI)
 
-A interação principal é feita através do script `aegis_cli.py`. Abaixo estão exemplos de uso com saídas simuladas.
+A interação principal é feita através do script `aegis_cli.py`.
+
+![Demonstração CLI](assets/cli_demo.svg)
+
+Abaixo estão exemplos de uso detalhados.
 
 ### Gestão de Identidade (DID)
 

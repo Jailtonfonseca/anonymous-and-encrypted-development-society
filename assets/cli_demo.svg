@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <style>
+      .term-text { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 14px; fill: #d4d4d4; }
+      .prompt { fill: #4caf50; font-weight: bold; }
+      .cmd { fill: #ffffff; }
+      .info { fill: #4fc3f7; }
+      .success { fill: #66bb6a; }
+      .keyword { fill: #ce93d8; }
+      .string { fill: #ce93d8; }
+      .hash { fill: #ffb74d; }
+    </style>
+    <!-- Window Shadow -->
+    <filter id="winShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
+      <feOffset dx="0" dy="4" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Window Container -->
+  <g filter="url(#winShadow)">
+    <rect x="50" y="20" width="700" height="400" rx="8" fill="#1e1e1e" stroke="#333" stroke-width="1" />
+
+    <!-- Title Bar -->
+    <path d="M50 28 A8 8 0 0 1 58 20 L742 20 A8 8 0 0 1 750 28 L750 50 L50 50 Z" fill="#2d2d2d" />
+
+    <!-- Window Buttons -->
+    <circle cx="75" cy="35" r="6" fill="#ff5f56" />
+    <circle cx="95" cy="35" r="6" fill="#ffbd2e" />
+    <circle cx="115" cy="35" r="6" fill="#27c93f" />
+
+    <!-- Title -->
+    <text x="400" y="40" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#999">jules@aegis-forge: ~/workspace</text>
+  </g>
+
+  <!-- Terminal Content -->
+  <g transform="translate(70, 80)">
+
+    <!-- Command 1: Create DID -->
+    <text x="0" y="0" class="term-text">
+      <tspan class="prompt">jules@aegis:~$</tspan> <tspan class="cmd">python aegis_cli.py did create --nickname "Alice"</tspan>
+    </text>
+
+    <text x="0" y="25" class="term-text success">✔ DID created successfully!</text>
+    <text x="0" y="45" class="term-text">DID: <tspan class="hash">did:aegis:0x71C7...9A23</tspan></text>
+    <text x="0" y="65" class="term-text">Owner: <tspan class="hash">0x90F8...9C1</tspan></text>
+    <text x="0" y="85" class="term-text">Tx Hash: <tspan class="hash">0x3a1b...f2e4</tspan></text>
+
+    <!-- Command 2: Create Project -->
+    <text x="0" y="125" class="term-text">
+      <tspan class="prompt">jules@aegis:~$</tspan> <tspan class="cmd">python aegis_cli.py project create "DeFiProtocol" --supply 1000000</tspan>
+    </text>
+
+    <text x="0" y="150" class="term-text info">ℹ Initializing project "DeFiProtocol"...</text>
+    <text x="0" y="170" class="term-text info">ℹ Uploading metadata to IPFS...</text>
+    <text x="0" y="195" class="term-text success">✔ Project 'DeFiProtocol' created!</text>
+    <text x="0" y="215" class="term-text">Project ID: <tspan class="keyword">defiprotocol</tspan></text>
+    <text x="0" y="235" class="term-text">Token Supply: <tspan class="keyword">1,000,000 AEGIS</tspan></text>
+    <text x="0" y="255" class="term-text">IPFS Hash: <tspan class="hash">QmXa...7zYq</tspan></text>
+
+    <!-- Command 3: Cursor -->
+    <text x="0" y="295" class="term-text">
+      <tspan class="prompt">jules@aegis:~$</tspan> <tspan class="cmd">_</tspan>
+    </text>
+
+  </g>
+</svg>
