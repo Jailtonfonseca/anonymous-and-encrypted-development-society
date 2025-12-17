@@ -13,14 +13,6 @@ CONTRACT_SOURCE_PATH = "AegisToken.sol"
 OPENZEPPELIN_BASE_PATH = "./openzeppelin" # Assuming openzeppelin folder is in the same dir
 
 # Default Ganache private keys for testing
-# Account 0 (Deployer/Owner): 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
-DEFAULT_GANACHE_PK_0 = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-# Account 1 (Recipient1): 0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0
-DEFAULT_GANACHE_PK_1 = "0x6c002f5f36494661586ebb0882038bf8d598aafb88a5e2300971707fce91e997"
-# Account 2 (Recipient2): 0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b
-DEFAULT_GANACHE_PK_2 = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
-
-
 def compile_contract_with_oz(source_file_path, contract_name, allow_paths_list):
     print(f"Compiling contract {source_file_path}...")
     try:
@@ -80,11 +72,11 @@ def compile_contract_with_oz(source_file_path, contract_name, allow_paths_list):
         print(f"Error during contract compilation: {e}")
         raise
 
-def deploy_new_aegis_token(w3, abi, bytecode, deployer_account):
-    print(f"Deploying AegisToken from account: {deployer_account.address}...")
+def deploy_new_aegis_token(w3, abi, bytecode, deployer_address):
+    print(f"Deploying AegisToken from account: {deployer_address}...")
     Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
     # AegisToken constructor takes 'initialOwner'
-    tx_hash = Contract.constructor(deployer_account.address).transact({'from': deployer_account.address})
+    tx_hash = Contract.constructor(deployer_address).transact({'from': deployer_address})
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print(f"AegisToken deployed at address: {tx_receipt.contractAddress}")
     return w3.eth.contract(address=tx_receipt.contractAddress, abi=abi)
@@ -100,13 +92,18 @@ class TestAegisTokenInteractions(unittest.TestCase):
         
         cls.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
-        cls.deployer_owner = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_0)
-        cls.recipient1 = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_1)
-        cls.recipient2 = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_2)
+        # Use available accounts from Ganache
+        accounts = cls.w3.eth.accounts
+        if len(accounts) < 3:
+            raise Exception("Ganache needs at least 3 unlocked accounts.")
 
-        print(f"\nUsing Deployer/Owner: {cls.deployer_owner.address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.deployer_owner.address), 'ether')} ETH)")
-        print(f"Using Recipient1: {cls.recipient1.address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.recipient1.address), 'ether')} ETH)")
-        print(f"Using Recipient2: {cls.recipient2.address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.recipient2.address), 'ether')} ETH)")
+        cls.deployer_owner_address = accounts[0]
+        cls.recipient1_address = accounts[1]
+        cls.recipient2_address = accounts[2]
+
+        print(f"\nUsing Deployer/Owner: {cls.deployer_owner_address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.deployer_owner_address), 'ether')} ETH)")
+        print(f"Using Recipient1: {cls.recipient1_address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.recipient1_address), 'ether')} ETH)")
+        print(f"Using Recipient2: {cls.recipient2_address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.recipient2_address), 'ether')} ETH)")
 
         # Compile contract (once for all tests in the class)
         # Allow paths for solcx to find local OpenZeppelin imports
@@ -121,17 +118,11 @@ class TestAegisTokenInteractions(unittest.TestCase):
 
     def setUp(self):
         # Deploy a new contract instance for each test method for isolation
-        self.token_contract = deploy_new_aegis_token(self.w3, self.abi, self.bytecode, self.deployer_owner)
+        self.token_contract = deploy_new_aegis_token(self.w3, self.abi, self.bytecode, self.deployer_owner_address)
 
-    def _sign_and_send_transaction(self, function_call, account):
-        tx = function_call.build_transaction({
-            'from': account.address,
-            'nonce': self.w3.eth.get_transaction_count(account.address),
-            'gas': 300000, # Sufficient for typical ERC20 operations
-            'gasPrice': self.w3.to_wei('1', 'gwei') 
-        })
-        signed_tx = account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    def _sign_and_send_transaction(self, function_call, account_address):
+        # Using unlocked accounts
+        tx_hash = function_call.transact({'from': account_address})
         return self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
     def test_01_deployment_and_initial_state(self):
@@ -140,14 +131,14 @@ class TestAegisTokenInteractions(unittest.TestCase):
         self.assertEqual(self.token_contract.functions.symbol().call(), "$AEGIS")
         self.assertEqual(self.token_contract.functions.decimals().call(), self.decimals)
         self.assertEqual(self.token_contract.functions.totalSupply().call(), self.initial_supply_smallest_units)
-        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner.address).call(), self.initial_supply_smallest_units)
-        self.assertEqual(self.token_contract.functions.owner().call(), self.deployer_owner.address)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner_address).call(), self.initial_supply_smallest_units)
+        self.assertEqual(self.token_contract.functions.owner().call(), self.deployer_owner_address)
         print("test_01_deployment_and_initial_state: PASSED")
 
     def test_02_balance_of(self):
         print("\nRunning test_02_balance_of...")
-        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner.address).call(), self.initial_supply_smallest_units)
-        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient1.address).call(), 0)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner_address).call(), self.initial_supply_smallest_units)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient1_address).call(), 0)
         print("test_02_balance_of: PASSED")
 
     def test_03_transfer_success(self):
@@ -155,19 +146,19 @@ class TestAegisTokenInteractions(unittest.TestCase):
         amount_to_transfer = 100 * (10**self.decimals)
         
         tx_receipt = self._sign_and_send_transaction(
-            self.token_contract.functions.transfer(self.recipient1.address, amount_to_transfer),
-            self.deployer_owner
+            self.token_contract.functions.transfer(self.recipient1_address, amount_to_transfer),
+            self.deployer_owner_address
         )
         self.assertEqual(tx_receipt.status, 1, "Transfer transaction failed")
         
-        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner.address).call(), self.initial_supply_smallest_units - amount_to_transfer)
-        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient1.address).call(), amount_to_transfer)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner_address).call(), self.initial_supply_smallest_units - amount_to_transfer)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient1_address).call(), amount_to_transfer)
         
         # Optional: Check for Transfer event (more advanced)
         # logs = self.token_contract.events.Transfer().get_logs(fromBlock=tx_receipt.blockNumber, toBlock=tx_receipt.blockNumber)
         # self.assertEqual(len(logs), 1)
-        # self.assertEqual(logs[0].args.frm, self.deployer_owner.address) # 'from' is a keyword
-        # self.assertEqual(logs[0].args.to, self.recipient1.address)
+        # self.assertEqual(logs[0].args.frm, self.deployer_owner_address) # 'from' is a keyword
+        # self.assertEqual(logs[0].args.to, self.recipient1_address)
         # self.assertEqual(logs[0].args.value, amount_to_transfer)
         print("test_03_transfer_success: PASSED")
 
@@ -177,8 +168,8 @@ class TestAegisTokenInteractions(unittest.TestCase):
         
         with self.assertRaises(Exception, msg="Transfer of insufficient funds should fail/revert"):
             self._sign_and_send_transaction(
-                self.token_contract.functions.transfer(self.recipient1.address, amount_too_high),
-                self.deployer_owner
+                self.token_contract.functions.transfer(self.recipient1_address, amount_too_high),
+                self.deployer_owner_address
             )
         print("test_04_transfer_insufficient_funds: PASSED (revert expected)")
 
@@ -186,11 +177,11 @@ class TestAegisTokenInteractions(unittest.TestCase):
         print("\nRunning test_05_approve_and_allowance...")
         amount_to_approve = 50 * (10**self.decimals)
         tx_receipt = self._sign_and_send_transaction(
-            self.token_contract.functions.approve(self.recipient1.address, amount_to_approve),
-            self.deployer_owner
+            self.token_contract.functions.approve(self.recipient1_address, amount_to_approve),
+            self.deployer_owner_address
         )
         self.assertEqual(tx_receipt.status, 1, "Approve transaction failed")
-        self.assertEqual(self.token_contract.functions.allowance(self.deployer_owner.address, self.recipient1.address).call(), amount_to_approve)
+        self.assertEqual(self.token_contract.functions.allowance(self.deployer_owner_address, self.recipient1_address).call(), amount_to_approve)
         print("test_05_approve_and_allowance: PASSED")
 
     def test_06_transfer_from_success(self):
@@ -200,20 +191,20 @@ class TestAegisTokenInteractions(unittest.TestCase):
 
         # Owner approves recipient1
         self._sign_and_send_transaction(
-            self.token_contract.functions.approve(self.recipient1.address, approved_amount),
-            self.deployer_owner
+            self.token_contract.functions.approve(self.recipient1_address, approved_amount),
+            self.deployer_owner_address
         )
         
         # Recipient1 transfers from owner to recipient2
         tx_receipt = self._sign_and_send_transaction(
-            self.token_contract.functions.transferFrom(self.deployer_owner.address, self.recipient2.address, transfer_amount),
-            self.recipient1 # Spender is recipient1
+            self.token_contract.functions.transferFrom(self.deployer_owner_address, self.recipient2_address, transfer_amount),
+            self.recipient1_address # Spender is recipient1
         )
         self.assertEqual(tx_receipt.status, 1, "transferFrom transaction failed")
 
-        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner.address).call(), self.initial_supply_smallest_units - transfer_amount)
-        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient2.address).call(), transfer_amount)
-        self.assertEqual(self.token_contract.functions.allowance(self.deployer_owner.address, self.recipient1.address).call(), approved_amount - transfer_amount)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.deployer_owner_address).call(), self.initial_supply_smallest_units - transfer_amount)
+        self.assertEqual(self.token_contract.functions.balanceOf(self.recipient2_address).call(), transfer_amount)
+        self.assertEqual(self.token_contract.functions.allowance(self.deployer_owner_address, self.recipient1_address).call(), approved_amount - transfer_amount)
         print("test_06_transfer_from_success: PASSED")
 
     def test_07_transfer_from_exceeds_allowance(self):
@@ -222,14 +213,14 @@ class TestAegisTokenInteractions(unittest.TestCase):
         transfer_amount_too_high = 35 * (10**self.decimals)
 
         self._sign_and_send_transaction(
-            self.token_contract.functions.approve(self.recipient1.address, approved_amount),
-            self.deployer_owner
+            self.token_contract.functions.approve(self.recipient1_address, approved_amount),
+            self.deployer_owner_address
         )
         
         with self.assertRaises(Exception, msg="transferFrom exceeding allowance should fail"):
             self._sign_and_send_transaction(
-                self.token_contract.functions.transferFrom(self.deployer_owner.address, self.recipient2.address, transfer_amount_too_high),
-                self.recipient1
+                self.token_contract.functions.transferFrom(self.deployer_owner_address, self.recipient2_address, transfer_amount_too_high),
+                self.recipient1_address
             )
         print("test_07_transfer_from_exceeds_allowance: PASSED (revert expected)")
 
@@ -239,8 +230,8 @@ class TestAegisTokenInteractions(unittest.TestCase):
         
         with self.assertRaises(Exception, msg="transferFrom with no allowance should fail"):
             self._sign_and_send_transaction(
-                self.token_contract.functions.transferFrom(self.deployer_owner.address, self.recipient2.address, transfer_amount),
-                self.recipient1
+                self.token_contract.functions.transferFrom(self.deployer_owner_address, self.recipient2_address, transfer_amount),
+                self.recipient1_address
             )
         print("test_08_transfer_from_no_allowance: PASSED (revert expected)")
 

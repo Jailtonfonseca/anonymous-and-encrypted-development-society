@@ -9,13 +9,6 @@ import solcx # To compile the contract within the test script
 # --- Configuration ---
 GANACHE_URL = "http://127.0.0.1:8545"
 CONTRACT_SOURCE_PATH = "DIDRegistry.sol" 
-# These private keys are default for Ganache instances started with no specific seed/mnemonic
-# Account 0: 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
-DEFAULT_GANACHE_PK_0 = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-# Account 1: 0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0
-DEFAULT_GANACHE_PK_1 = "0x6c002f5f36494661586ebb0882038bf8d598aafb88a5e2300971707fce91e997"
-
-
 def compile_contract(source_file_path, contract_name):
     print(f"Compiling contract {source_file_path}...")
     try:
@@ -89,45 +82,43 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         cls.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
         # Setup accounts
-        # It's safer to derive addresses from PKs if PKs are fixed/known for test environment
-        cls.owner_account = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_0)
-        cls.non_owner_account = cls.w3.eth.account.from_key(DEFAULT_GANACHE_PK_1)
+        # Use first two available accounts from Ganache
+        accounts = cls.w3.eth.accounts
+        if len(accounts) < 2:
+            raise Exception("Ganache needs at least 2 unlocked accounts.")
+
+        cls.owner_address = accounts[0]
+        cls.non_owner_address = accounts[1]
         
         # Ensure accounts have Ether (Ganache usually does this by default)
-        print(f"Owner account: {cls.owner_account.address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.owner_account.address), 'ether')} ETH)")
-        print(f"Non-owner account: {cls.non_owner_account.address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.non_owner_account.address), 'ether')} ETH)")
+        print(f"Owner account: {cls.owner_address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.owner_address), 'ether')} ETH)")
+        print(f"Non-owner account: {cls.non_owner_address} (Balance: {cls.w3.from_wei(cls.w3.eth.get_balance(cls.non_owner_address), 'ether')} ETH)")
 
         cls.abi, cls.bytecode = compile_contract(CONTRACT_SOURCE_PATH, "DIDRegistry")
 
     def setUp(self):
         # Deploy a new contract instance for each test method
-        self.contract = deploy_new_contract(self.w3, self.abi, self.bytecode, self.owner_account.address)
+        self.contract = deploy_new_contract(self.w3, self.abi, self.bytecode, self.owner_address)
         self.test_did_str_root = f"test-did-{uuid.uuid4().hex[:8]}" 
         self.test_did_bytes = Web3.keccak(text=self.test_did_str_root)
         self.initial_pk = "initial_pk_123"
         self.initial_doc_cid = "QmInitialCID123"
 
-    def _sign_and_send_transaction(self, function_call, account):
-        tx = function_call.build_transaction({
-            'from': account.address,
-            'nonce': self.w3.eth.get_transaction_count(account.address),
-            'gas': 2000000, # Adjust as needed, or estimate
-            'gasPrice': self.w3.to_wei('1', 'gwei')
-        })
-        signed_tx = account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    def _sign_and_send_transaction(self, function_call, account_address):
+        # Since we use unlocked accounts, we can send transactions directly
+        tx_hash = function_call.transact({'from': account_address})
         return self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
     def test_01_register_did_success(self):
         print("\nRunning test_01_register_did_success...")
         tx_receipt = self._sign_and_send_transaction(
             self.contract.functions.registerDID(self.test_did_bytes, self.initial_pk, self.initial_doc_cid),
-            self.owner_account
+            self.owner_address
         )
         self.assertEqual(tx_receipt.status, 1, "DID registration failed")
         
         owner, pk, cid = self.contract.functions.getDIDInfo(self.test_did_bytes).call()
-        self.assertEqual(owner, self.owner_account.address)
+        self.assertEqual(owner, self.owner_address)
         self.assertEqual(pk, self.initial_pk)
         self.assertEqual(cid, self.initial_doc_cid)
         self.assertTrue(self.contract.functions.isDIDRegistered(self.test_did_bytes).call())
@@ -138,13 +129,13 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         # First registration
         self._sign_and_send_transaction(
             self.contract.functions.registerDID(self.test_did_bytes, self.initial_pk, self.initial_doc_cid),
-            self.owner_account
+            self.owner_address
         )
         # Attempt to re-register
         with self.assertRaises(Exception, msg="Re-registration should fail/revert"):
              self._sign_and_send_transaction( # This should raise an exception (e.g. ValueError due to revert)
                 self.contract.functions.registerDID(self.test_did_bytes, "new_pk", "new_cid"),
-                self.owner_account
+                self.owner_address
             )
         print("test_02_reregister_did_fail: PASSED (revert expected)")
 
@@ -152,13 +143,13 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         print("\nRunning test_03_update_by_owner...")
         self._sign_and_send_transaction(
             self.contract.functions.registerDID(self.test_did_bytes, self.initial_pk, self.initial_doc_cid),
-            self.owner_account
+            self.owner_address
         )
         
         new_pk = "updated_pk_456"
         tx_receipt_pk = self._sign_and_send_transaction(
             self.contract.functions.updatePublicKey(self.test_did_bytes, new_pk),
-            self.owner_account
+            self.owner_address
         )
         self.assertEqual(tx_receipt_pk.status, 1, "Update public key failed")
         self.assertEqual(self.contract.functions.getPublicKey(self.test_did_bytes).call(), new_pk)
@@ -166,7 +157,7 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         new_doc_cid = "QmUpdatedCID456"
         tx_receipt_cid = self._sign_and_send_transaction(
             self.contract.functions.updateDocumentCID(self.test_did_bytes, new_doc_cid),
-            self.owner_account
+            self.owner_address
         )
         self.assertEqual(tx_receipt_cid.status, 1, "Update document CID failed")
         self.assertEqual(self.contract.functions.getDocumentCID(self.test_did_bytes).call(), new_doc_cid)
@@ -176,19 +167,19 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         print("\nRunning test_04_update_by_non_owner_fail...")
         self._sign_and_send_transaction(
             self.contract.functions.registerDID(self.test_did_bytes, self.initial_pk, self.initial_doc_cid),
-            self.owner_account
+            self.owner_address
         )
         
         with self.assertRaises(Exception, msg="Update public key by non-owner should fail"):
             self._sign_and_send_transaction(
                 self.contract.functions.updatePublicKey(self.test_did_bytes, "pk_by_non_owner"),
-                self.non_owner_account
+                self.non_owner_address
             )
         
         with self.assertRaises(Exception, msg="Update document CID by non-owner should fail"):
             self._sign_and_send_transaction(
                 self.contract.functions.updateDocumentCID(self.test_did_bytes, "cid_by_non_owner"),
-                self.non_owner_account
+                self.non_owner_address
             )
         print("test_04_update_by_non_owner_fail: PASSED (reverts expected)")
 
@@ -215,7 +206,7 @@ class TestDIDRegistryInteractions(unittest.TestCase):
         # If this behavior is undesirable, the contract should add a require(did != bytes32(0), "DID cannot be empty");
         tx_receipt = self._sign_and_send_transaction(
             self.contract.functions.registerDID(empty_bytes32, "pk_for_empty", "cid_for_empty"),
-            self.owner_account
+            self.owner_address
         )
         self.assertEqual(tx_receipt.status, 1, "Registration of empty bytes32 DID failed unexpectedly")
         self.assertTrue(self.contract.functions.isDIDRegistered(empty_bytes32).call())
