@@ -1,0 +1,30 @@
+# Aegis Forge - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core Web3 dependencies
+web3>=6.0.0,<7.0.0
+
+# CLI framework
+click>=8.0.0
+
+# IPFS integration
+ipfshttpclient>=0.8.0a2
+
+# Cryptography for P2P messaging
+eciespy>=0.3.0
+eth-keys>=0.4.0
+cryptography>=40.0.0
+
+# Utilities
+hexbytes>=0.3.0
+python-dotenv>=1.0.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Code quality (optional)
+# flake8>=6.0.0
+# black>=23.0.0
+# mypy>=1.0.0
